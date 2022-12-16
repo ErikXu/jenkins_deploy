@@ -1,0 +1,57 @@
+pipeline {
+    agent any
+    
+    stages {
+        stage("download-script") {
+            steps {
+                script {
+                    echo "拷贝构建脚本"
+                    sh "cp /var/jenkins_home/workspace/Jenkins_Deploy_main/go/*.sh ./"
+                }
+            }
+        }
+
+        stage("pre-build") {
+            steps {
+                script {
+                    echo "打印构建信息"
+
+                    env.DS_DESCRIPTION = sh (script: "git log -1 --pretty=%B ${GIT_COMMIT}", returnStdout: true).trim()
+
+                    if (env.BRANCH_NAME == env.TAG_NAME) {
+                        echo "当前TAG：" + env.TAG_NAME
+                    }
+                    else {
+                        echo "当前分支：" + env.BRANCH_NAME
+                    }
+
+                    echo "当前提交：" + env.GIT_COMMIT
+                    echo "工作目录：" + env.WORKSPACE
+                    echo "提交描述：" + env.DS_DESCRIPTION
+                }
+            }
+        }
+
+        stage("build") {
+            steps {
+                script {
+                    echo "开始构建"
+
+                    sh "cat build.sh | sed 's|\${PWD}|${env.WORKSPACE_ON_HOST}|g' > build_in_jenkins.sh"
+
+                    sh "sh build_in_jenkins.sh"
+                }
+            }
+        }
+
+        stage("package") {
+            steps {
+                script {
+                    echo "开始打包"
+
+                    sh "sh pack.sh"
+                }
+            }
+        }
+    }
+}
